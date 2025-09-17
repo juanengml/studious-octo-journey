@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciador de Itens - Página Principal{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-boxes text-primary"></i> Gerenciador de Itens
+        </h1>
+    </div>
+</div>
+
+<!-- Seção de Adicionar/Editar Item -->
+<div class="form-section">
+    <h3 class="mb-3">
+        <i class="fas fa-plus-circle text-success"></i> 
+        <span id="form-title">Adicionar Novo Item</span>
+    </h3>
+    
+    <form id="item-form">
+        <div class="row">
+            <div class="col-md-3">
+                <label for="item-id" class="form-label">ID do Item</label>
+                <input type="number" class="form-control" id="item-id" required>
+            </div>
+            <div class="col-md-4">
+                <label for="item-name" class="form-label">Nome</label>
+                <input type="text" class="form-control" id="item-name" required>
+            </div>
+            <div class="col-md-5">
+                <label for="item-description" class="form-label">Descrição</label>
+                <input type="text" class="form-control" id="item-description">
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <button type="submit" class="btn btn-success" id="submit-btn">
+                <i class="fas fa-save"></i> Salvar Item
+            </button>
+            <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Alertas -->
+<div id="alert-container"></div>
+
+<!-- Seção de Listagem de Itens -->
+<div class="row">
+    <div class="col-12">
+        <h3 class="mb-3">
+            <i class="fas fa-list text-info"></i> Itens Cadastrados
+        </h3>
+        
+        <div class="row" id="items-container">
+            <!-- Os itens serão carregados aqui via JavaScript -->
+        </div>
+        
+        <div id="no-items" class="text-center text-muted" style="display: none;">
+            <i class="fas fa-inbox fa-3x mb-3"></i>
+            <p>Nenhum item cadastrado ainda.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let editingItemId = null;
+
+// Função para mostrar alertas
+function showAlert(message, type = 'info') {
+    const alertContainer = document.getElementById('alert-container');
+    const alertId = 'alert-' + Date.now();
+    
+    const alertHTML = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    alertContainer.innerHTML = alertHTML;
+    
+    // Remove o alerta após 5 segundos
+    setTimeout(() => {
+        const alert = document.getElementById(alertId);
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Função para carregar todos os itens
+async function loadItems() {
+    try {
+        const items = {};
+        // Como não temos uma rota para listar todos os itens, vamos simular
+        // Na prática, você deveria criar uma rota GET /items/ que retorne todos os itens
+        const itemsContainer = document.getElementById('items-container');
+        const noItems = document.getElementById('no-items');
+        
+        if (Object.keys(items).length === 0) {
+            itemsContainer.innerHTML = '';
+            noItems.style.display = 'block';
+        } else {
+            noItems.style.display = 'none';
+            itemsContainer.innerHTML = Object.entries(items).map(([id, item]) => `
+                <div class="col-md-4 mb-3">
+                    <div class="card item-card">
+                        <div class="card-body">
+                            <h5 class="card-title">${item.name}</h5>
+                            <p class="card-text">${item.description || 'Sem descrição'}</p>
+                            <small class="text-muted">ID: ${id}</small>
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-warning btn-action" onclick="editItem(${id})">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-sm btn-danger btn-action" onclick="deleteItem(${id})">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        showAlert('Erro ao carregar itens: ' + error.message, 'danger');
+    }
+}
+
+// Função para editar item
+async function editItem(itemId) {
+    try {
+        const response = await axios.get(`/items/${itemId}`);
+        const item = response.data;
+        
+        document.getElementById('item-id').value = itemId;
+        document.getElementById('item-name').value = item.name;
+        document.getElementById('item-description').value = item.description || '';
+        
+        document.getElementById('form-title').textContent = 'Editar Item';
+        document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save"></i> Atualizar Item';
+        document.getElementById('cancel-btn').style.display = 'inline-block';
+        
+        editingItemId = itemId;
+        
+        // Scroll para o formulário
+        document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
+        
+    } catch (error) {
+        showAlert('Erro ao carregar item: ' + error.message, 'danger');
+    }
+}
+
+// Função para excluir item
+async function deleteItem(itemId) {
+    if (confirm('Tem certeza que deseja excluir este item?')) {
+        try {
+            await axios.delete(`/items/${itemId}`);
+            showAlert('Item excluído com sucesso!', 'success');
+            loadItems();
+        } catch (error) {
+            showAlert('Erro ao excluir item: ' + error.message, 'danger');
+        }
+    }
+}
+
+// Função para cancelar edição
+function cancelEdit() {
+    document.getElementById('item-form').reset();
+    document.getElementById('form-title').textContent = 'Adicionar Novo Item';
+    document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save"></i> Salvar Item';
+    document.getElementById('cancel-btn').style.display = 'none';
+    editingItemId = null;
+}
+
+// Event listeners
+document.getElementById('item-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const itemId = document.getElementById('item-id').value;
+    const itemName = document.getElementById('item-name').value;
+    const itemDescription = document.getElementById('item-description').value;
+    
+    const itemData = {
+        name: itemName,
+        description: itemDescription || null
+    };
+    
+    try {
+        if (editingItemId) {
+            // Atualizar item existente
+            await axios.put(`/items/${itemId}`, itemData);
+            showAlert('Item atualizado com sucesso!', 'success');
+        } else {
+            // Criar novo item
+            await axios.post(`/items/?item_id=${itemId}`, itemData);
+            showAlert('Item criado com sucesso!', 'success');
+        }
+        
+        cancelEdit();
+        loadItems();
+        
+    } catch (error) {
+        const errorMessage = error.response?.data?.detail || error.message;
+        showAlert('Erro: ' + errorMessage, 'danger');
+    }
+});
+
+document.getElementById('cancel-btn').addEventListener('click', cancelEdit);
+
+// Carregar itens quando a página carrega
+document.addEventListener('DOMContentLoaded', loadItems);
+</script>
+{% endblock %}

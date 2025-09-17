@@ -1,8 +1,17 @@
 from typing import Union
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 app = FastAPI()
+
+# Configuração dos templates
+templates = Jinja2Templates(directory="templates")
+
+# Montar arquivos estáticos
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Modelo do item
 class Item(BaseModel):
@@ -12,9 +21,9 @@ class Item(BaseModel):
 # "Banco de dados" em memória
 items_db = {}
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+@app.get("/", response_class=HTMLResponse)
+def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 # CREATE
 @app.post("/items/", response_model=Item)
